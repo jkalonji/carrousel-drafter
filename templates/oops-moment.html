@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    height: 1350px;
+  }
+
+  body {
+    font-family: 'Playfair Display', serif;
+    /* Fond gris-bleu texturé reproduisant l'identité visuelle */
+    background-color: #8a9099;
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0.05) 0px,
+        rgba(0,0,0,0.05) 1px,
+        transparent 1px,
+        transparent 3px
+      ),
+      radial-gradient(ellipse at 30% 30%, #9ba1aa 0%, #7d848d 70%, #6a717a 100%);
+    color: #f4f4f2;
+    padding: 90px 80px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+
+  .slide-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+  }
+
+  .title {
+    font-weight: 700;
+    font-size: 130px;
+    line-height: 1.02;
+    letter-spacing: -2px;
+    margin-bottom: 40px;
+  }
+
+  .title.small {
+    font-size: 96px;
+  }
+
+  .title.xsmall {
+    font-size: 76px;
+  }
+
+  .highlight {
+    display: inline-block;
+    font-style: italic;
+    color: #3250d8;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 8px;
+    margin-top: 20px;
+  }
+
+  .stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-top: 50px;
+    max-width: 85%;
+  }
+
+  .body-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 40px;
+    line-height: 1.35;
+    margin-top: 40px;
+    max-width: 90%;
+    font-weight: 400;
+  }
+
+  .slide-image {
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: 8px;
+    margin-top: 40px;
+    object-fit: cover;
+    align-self: flex-start;
+  }
+
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    opacity: 0.85;
+  }
+
+  .footer.left {
+    justify-content: space-between;
+  }
+
+  .slide-number {
+    opacity: 0.6;
+  }
+
+  .missing-image-placeholder {
+    margin-top: 40px;
+    padding: 30px;
+    border: 2px dashed rgba(255,255,255,0.35);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    color: rgba(255,255,255,0.7);
+    max-width: 90%;
+  }
+</style>
+</head>
+<body>
+  <div class="slide-content">
+    {{#title_lines}}
+    <div class="title {{title_size}}">{{{title_html}}}</div>
+    {{/title_lines}}
+
+    {{#body}}
+    <div class="body-text">{{body}}</div>
+    {{/body}}
+
+    {{#stat}}
+    <div class="stat">{{stat}}</div>
+    {{/stat}}
+
+    {{#image}}
+    <img class="slide-image" src="{{image}}" alt="">
+    {{/image}}
+
+    {{#missing_image_note}}
+    <div class="missing-image-placeholder">
+      [IMAGE MANQUANTE] {{missing_image_note}}
+    </div>
+    {{/missing_image_note}}
+  </div>
+
+  <div class="footer {{#footer_left}}left{{/footer_left}}">
+    {{#footer_left}}<span class="slide-number">{{slide_number}} / {{total_slides}}</span>{{/footer_left}}
+    <span>{{footer_text}}</span>
+  </div>
+</body>
+</html>
