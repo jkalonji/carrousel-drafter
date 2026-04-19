@@ -127,15 +127,15 @@
 <body>
   <div class="slide-content">
     {{#title_lines}}
-    <div class="title {{title_size}}">{{{title_html}}}</div>
+    <div class="title {{title_size}}" style="{{{title_style}}}">{{{title_html}}}</div>
     {{/title_lines}}
 
     {{#body}}
-    <div class="body-text">{{body}}</div>
+    <div class="body-text" style="{{{body_style}}}">{{body}}</div>
     {{/body}}
 
     {{#stat}}
-    <div class="stat">{{stat}}</div>
+    <div class="stat" style="{{{stat_style}}}">{{stat}}</div>
     {{/stat}}
 
     {{#image}}

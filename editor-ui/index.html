@@ -252,28 +252,37 @@
     margin-top: 12px;
     cursor: default;
   }
-  #p-handle {
+  .el-handle {
     position: absolute;
     cursor: move;
+    border: 2px solid;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    box-sizing: border-box;
   }
-  #p-handle .p-border {
-    border: 2px solid #3250d8;
-    border-radius: 6px;
-    box-shadow: 0 2px 12px rgba(50,80,216,0.35);
-    position: relative;
+  .el-handle:hover { background: rgba(255,255,255,0.18); }
+  .el-label {
+    position: absolute;
+    top: -19px;
+    left: -2px;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    padding: 2px 7px;
+    border-radius: 3px 3px 0 0;
+    white-space: nowrap;
+    pointer-events: none;
   }
-  #p-handle img { width: 100%; height: auto; display: block; border-radius: 4px; pointer-events: none; }
-  #p-resize {
+  .el-resize {
     position: absolute;
     right: -7px;
     bottom: -7px;
     width: 14px;
     height: 14px;
-    background: #3250d8;
     border-radius: 50%;
     cursor: se-resize;
     border: 2px solid white;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
   }
 </style>
 </head>
@@ -286,6 +295,7 @@
   <div class="actions">
     <span class="status" id="save-status"></span>
     <button class="ghost" id="btn-render-all">Re-render toutes les slides</button>
+    <button class="ghost" id="btn-export-pdf">Exporter PDF</button>
     <button id="btn-open-folder">Ouvrir le dossier</button>
   </div>
 </header>
@@ -426,7 +436,7 @@ function renderEditPanel() {
     </div>
     <div class="drop-zone" id="drop-zone">Glisse une image ici</div>
 
-    <div class="section-title" style="margin-top:28px;">Placement de l'image</div>
+    <div class="section-title" style="margin-top:28px;">Mise en page</div>
     <div id="placement-canvas-section"></div>
   `;
 
@@ -481,82 +491,94 @@ function renderEditPanel() {
 
 function initPlacementCanvas(slide) {
   if (canvasController) { canvasController.abort(); canvasController = null; }
-
   const section = document.getElementById('placement-canvas-section');
   if (!section) return;
 
-  if (!slide.imageUrl) {
-    section.innerHTML = '<p style="font-size:12px;color:#999;margin-top:8px;">Aucune image — glisse ou uploade une image pour la positionner.</p>';
-    return;
+  const CW = 432, CH = 540; // 40 % du slide 1080×1350
+  const slideNum = String(activeIdx + 1).padStart(2, '0');
+
+  // Définition de chaque élément : clé, libellé, couleur, position par défaut
+  const ELEMS = [
+    { key: 'title', label: 'Titre',  color: '#3250d8', def: { x:7, y:7,  w:86, h:28 }, visible: !!slide.title },
+    { key: 'body',  label: 'Corps',  color: '#9b2dd8', def: { x:7, y:50, w:86, h:15 }, visible: !!slide.body },
+    { key: 'stat',  label: 'Stat',   color: '#2db82d', def: { x:7, y:68, w:86, h:7  }, visible: !!slide.stat },
+    { key: 'image', label: 'Image',  color: '#d87d2d', def: { x:7, y:40, w:86, h:35 }, visible: !!slide.imageUrl },
+  ].filter(el => el.visible);
+
+  const handlesHtml = ELEMS.map(el => {
+    const x = slide[`${el.key}X`] ?? el.def.x;
+    const y = slide[`${el.key}Y`] ?? el.def.y;
+    const w = slide[`${el.key}W`] ?? el.def.w;
+    const h = el.def.h;
+    const px = (x / 100) * CW, py = (y / 100) * CH;
+    const pw = (w / 100) * CW, ph = (h / 100) * CH;
+    return `<div class="el-handle" data-key="${el.key}"
+              style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border-color:${el.color};">
+              <span class="el-label" style="background:${el.color};">${el.label}</span>
+              <div class="el-resize" style="background:${el.color};"></div>
+            </div>`;
+  }).join('');
+
+  section.innerHTML = `
+    <div id="p-canvas">
+      <img id="p-bg" src="/draft/slide-${slideNum}.png?t=${Date.now()}"
+           style="width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;" alt="">
+      ${handlesHtml}
+    </div>
+    <p style="font-size:11px;color:#888;margin-top:6px;">
+      Glisse un bloc pour le repositionner · Coin bas-droit pour redimensionner
+    </p>
+  `;
+
+  // Ajuster la hauteur du handle Image selon l'aspect ratio réel
+  if (slide.imageUrl) {
+    const imgEl = new Image();
+    imgEl.onload = () => {
+      const h = document.querySelector('.el-handle[data-key="image"]');
+      if (h) h.style.height = `${parseFloat(h.style.width) * imgEl.naturalHeight / imgEl.naturalWidth}px`;
+    };
+    imgEl.src = slide.imageUrl;
   }
 
   canvasController = new AbortController();
   const { signal } = canvasController;
 
-  const CW = 432, CH = 540; // canvas px (scale 0.4 du slide 1080×1350)
-  const imgX = slide.imageX ?? 5;
-  const imgY = slide.imageY ?? 50;
-  const imgW = slide.imageW ?? 90;
-  const px = (imgX / 100) * CW;
-  const py = (imgY / 100) * CH;
-  const pw = (imgW / 100) * CW;
-  const slideNum = String(activeIdx + 1).padStart(2, '0');
+  let active = null; // { key, handle, dragging|resizing, startMX, startMY, startL, startT, startW }
 
-  section.innerHTML = `
-    <div id="p-canvas">
-      <img src="/draft/slide-${slideNum}.png?t=${Date.now()}" style="width:100%;height:100%;object-fit:fill;display:block;pointer-events:none;" alt="">
-      <div id="p-handle" style="left:${px}px;top:${py}px;width:${pw}px;">
-        <div class="p-border">
-          <img src="${slide.imageUrl}?t=${Date.now()}" alt="">
-          <div id="p-resize"></div>
-        </div>
-      </div>
-    </div>
-    <p style="font-size:11px;color:#888;margin-top:6px;">Glisse l'image pour repositionner · Coin bas-droit pour redimensionner</p>
-  `;
+  document.querySelectorAll('.el-handle').forEach(handle => {
+    const key = handle.dataset.key;
+    const resizeBtn = handle.querySelector('.el-resize');
 
-  const handle = document.getElementById('p-handle');
-  const resizeBtn = document.getElementById('p-resize');
-
-  let dragging = false, resizing = false;
-  let startMX, startMY, startL, startT, startW;
-
-  handle.addEventListener('mousedown', (e) => {
-    if (resizeBtn.contains(e.target)) return;
-    dragging = true;
-    startMX = e.clientX; startMY = e.clientY;
-    startL = parseFloat(handle.style.left);
-    startT = parseFloat(handle.style.top);
-    e.preventDefault();
-  });
-
-  resizeBtn.addEventListener('mousedown', (e) => {
-    resizing = true;
-    startMX = e.clientX;
-    startW = parseFloat(handle.style.width);
-    e.preventDefault();
-    e.stopPropagation();
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (resizeBtn.contains(e.target)) {
+        active = { key, handle, resizing: true, startMX: e.clientX, startW: parseFloat(handle.style.width) };
+      } else {
+        active = { key, handle, dragging: true, startMX: e.clientX, startMY: e.clientY,
+          startL: parseFloat(handle.style.left), startT: parseFloat(handle.style.top) };
+      }
+    });
   });
 
   document.addEventListener('mousemove', (e) => {
+    if (!active) return;
+    const { handle, dragging, resizing, startMX, startMY, startL, startT, startW } = active;
     if (dragging) {
-      const newL = Math.max(0, Math.min(CW - parseFloat(handle.style.width), startL + e.clientX - startMX));
-      const newT = Math.max(0, Math.min(CH - 20, startT + e.clientY - startMY));
-      handle.style.left = newL + 'px';
-      handle.style.top = newT + 'px';
+      handle.style.left = `${Math.max(0, Math.min(CW - parseFloat(handle.style.width),  startL + e.clientX - startMX))}px`;
+      handle.style.top  = `${Math.max(0, Math.min(CH - parseFloat(handle.style.height), startT + e.clientY - startMY))}px`;
     } else if (resizing) {
-      const newW = Math.max(40, Math.min(CW - parseFloat(handle.style.left), startW + e.clientX - startMX));
-      handle.style.width = newW + 'px';
+      handle.style.width = `${Math.max(30, Math.min(CW - parseFloat(handle.style.left), startW + e.clientX - startMX))}px`;
     }
   }, { signal });
 
   document.addEventListener('mouseup', () => {
-    if (!dragging && !resizing) return;
-    dragging = false; resizing = false;
+    if (!active) return;
+    const { key, handle } = active;
+    active = null;
     const s = script.slides[activeIdx];
-    s.imageX = Math.round((parseFloat(handle.style.left) / CW) * 1000) / 10;
-    s.imageY = Math.round((parseFloat(handle.style.top)  / CH) * 1000) / 10;
-    s.imageW = Math.round((parseFloat(handle.style.width) / CW) * 1000) / 10;
+    s[`${key}X`] = Math.round((parseFloat(handle.style.left)  / CW) * 1000) / 10;
+    s[`${key}Y`] = Math.round((parseFloat(handle.style.top)   / CH) * 1000) / 10;
+    s[`${key}W`] = Math.round((parseFloat(handle.style.width) / CW) * 1000) / 10;
     saveAll().then(() => renderSlide(activeIdx));
   }, { signal });
 }
@@ -663,6 +685,24 @@ document.getElementById('btn-render-all').onclick = async () => {
 
 document.getElementById('btn-open-folder').onclick = () => {
   toast('Dossier indiqué dans le terminal');
+};
+
+document.getElementById('btn-export-pdf').onclick = async () => {
+  toast('Génération du PDF...');
+  setStatus('Export PDF...', 'saving');
+  try {
+    const res = await fetch('/api/export-pdf');
+    if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'carousel.pdf'; a.click();
+    URL.revokeObjectURL(url);
+    toast('PDF exporté ✓');
+  } catch (e) {
+    toast('Erreur PDF : ' + e.message, 'error');
+  }
+  setStatus('');
 };
 
 function escapeHtml(s) {

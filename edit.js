@@ -180,6 +180,33 @@ async function main() {
     }
   });
 
+  // GET /api/export-pdf : génère un PDF multi-pages à partir des slides rendues
+  app.get('/api/export-pdf', async (_req, res) => {
+    try {
+      const script = JSON.parse(await fs.readFile(scriptPath, 'utf-8'));
+      const total = script.slides.length;
+      const slideDivs = Array.from({ length: total }, (_, i) => {
+        const url = `http://localhost:${PORT}/draft/slide-${String(i + 1).padStart(2, '0')}.png`;
+        const breakStyle = i < total - 1 ? 'page-break-after:always;' : '';
+        return `<div style="width:1080px;height:1350px;${breakStyle}overflow:hidden;"><img src="${url}" style="width:100%;height:100%;display:block;"></div>`;
+      }).join('');
+      const html = `<!DOCTYPE html><html><head><style>*{margin:0;padding:0;} @page{size:1080px 1350px;margin:0;}</style></head><body>${slideDivs}</body></html>`;
+
+      const browser = await (await import('puppeteer')).default.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({ width: '1080px', height: '1350px', printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } });
+      await browser.close();
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${draftName}.pdf"`);
+      res.send(Buffer.from(pdfBuffer));
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // GET / : redirige vers l'UI
   app.get('/', (_req, res) => res.redirect('/ui/index.html'));
 

@@ -26,15 +26,21 @@ function renderTemplate(tpl, data) {
 }
 
 // Construit le titre en HTML avec le mot-clé "highlight" souligné en bleu
-function buildTitleHtml(title, highlight) {
+function buildTitleHtml(title, highlight, style = '') {
   if (!highlight || !title.includes(highlight)) {
-    return [{ title_html: escapeHtml(title), title_size: title.length > 40 ? 'small' : '' }];
+    return [{ title_html: escapeHtml(title), title_size: title.length > 40 ? 'small' : '', title_style: style }];
   }
   const before = title.split(highlight)[0];
   const after = title.split(highlight).slice(1).join(highlight);
   const html = `${escapeHtml(before)}<span class="highlight">${escapeHtml(highlight)}</span>${escapeHtml(after)}`;
   const size = title.length > 60 ? 'xsmall' : title.length > 35 ? 'small' : '';
-  return [{ title_html: html, title_size: size }];
+  return [{ title_html: html, title_size: size, title_style: style }];
+}
+
+// Génère le style CSS inline pour un élément positionné librement
+function posStyle(key, slide, extra = '') {
+  if (slide[`${key}X`] === undefined) return '';
+  return `position:absolute;left:${slide[`${key}X`]}%;top:${slide[`${key}Y`]}%;width:${slide[`${key}W`] ?? 80}%;margin:0;max-width:none;${extra}`;
 }
 
 function escapeHtml(s) {
@@ -92,14 +98,17 @@ export async function renderSingleSlide(script, slide, slideIndex, totalSlides, 
 
 async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
   const isLast = i === total - 1;
-  const imageStyle = (slide.imageX !== undefined)
-    ? `position:absolute;left:${slide.imageX}%;top:${slide.imageY}%;width:${slide.imageW ?? 80}%;max-width:none;max-height:none;height:auto;margin:0;border-radius:8px;object-fit:contain;`
-    : '';
+  const titleStyle = posStyle('title', slide);
+  const bodyStyle  = posStyle('body', slide);
+  const statStyle  = posStyle('stat', slide);
+  const imageStyle = posStyle('image', slide, 'max-height:none;height:auto;border-radius:8px;object-fit:contain;');
 
   const data = {
-    title_lines: buildTitleHtml(slide.title, slide.highlight),
+    title_lines: buildTitleHtml(slide.title, slide.highlight, titleStyle),
     body: slide.body || '',
+    body_style: bodyStyle,
     stat: slide.stat || '',
+    stat_style: statStyle,
     image: slide.imageFile ? `file://${slide.imageFile.replace(/\\/g, '/')}` : '',
     image_style: imageStyle,
     missing_image_note: slide.missingImageNote || '',
