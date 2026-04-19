@@ -65,6 +65,7 @@
   }
   .slide-preview:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
   .slide-preview.active { border-color: #3250d8; }
+  .slide-preview.drag-over { border-color: #3250d8; background: #e8ecfb; transform: scale(1.02); }
   .slide-preview img {
     width: 100%;
     display: block;
@@ -150,18 +151,22 @@
     cursor: pointer;
   }
   .image-actions button:hover { background: #e4e4ea; }
-  .image-actions label {
-    flex: 1;
-    background: #f0f0f3;
-    border: 1px solid #d0d0d5;
-    padding: 8px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
+
+  .drop-zone {
+    margin-top: 12px;
+    border: 2px dashed #d0d0d5;
+    border-radius: 8px;
+    padding: 18px;
     text-align: center;
-    display: block;
+    font-size: 12px;
+    color: #999;
+    transition: border-color 0.15s, background 0.15s;
   }
-  .image-actions input[type=file] { display: none; }
+  .drop-zone.drag-over {
+    border-color: #3250d8;
+    background: #e8ecfb;
+    color: #3250d8;
+  }
 
   .section-title {
     font-size: 11px;
@@ -262,8 +267,36 @@ function renderPreviewPanel() {
       </div>
     `;
     div.onclick = () => selectSlide(idx);
+
+    div.addEventListener('dragover', (e) => { e.preventDefault(); div.classList.add('drag-over'); });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('drop', (e) => {
+      e.preventDefault();
+      div.classList.remove('drag-over');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) uploadImageFile(idx, file);
+    });
+
     panel.appendChild(div);
   });
+}
+
+async function uploadImageFile(idx, file) {
+  const formData = new FormData();
+  formData.append('image', file);
+  setStatus('Upload...', 'saving');
+  const res = await fetch(`/api/upload-image/${idx}`, { method: 'POST', body: formData });
+  const data = await res.json();
+  if (data.ok) {
+    script.slides[idx] = data.slide;
+    toast('Image uploadée');
+    renderPreviewPanel();
+    if (idx === activeIdx) renderEditPanel();
+    setStatus('');
+  } else {
+    toast('Erreur : ' + (data.error || 'inconnue'), 'error');
+    setStatus('');
+  }
 }
 
 function selectSlide(idx) {
@@ -324,6 +357,7 @@ function renderEditPanel() {
       <button id="btn-refetch">🔄 Relancer la recherche</button>
       <button id="btn-upload">📤 Uploader une image</button>
     </div>
+    <div class="drop-zone" id="drop-zone">Glisse une image ici</div>
   `;
 
   // Listeners sur les champs texte
@@ -332,6 +366,10 @@ function renderEditPanel() {
   });
 
   document.getElementById('btn-upload').onclick = () => document.getElementById('file-upload').click();
+  document.getElementById('file-upload').onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) uploadImageFile(activeIdx, file);
+  };
 
   document.getElementById('btn-refetch').onclick = async () => {
     const strategy = document.getElementById('f-image-strategy').value;
@@ -355,28 +393,18 @@ function renderEditPanel() {
     }
   };
 
-  document.getElementById('file-upload').onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('image', file);
-    setStatus('Upload...', 'saving');
-    const res = await fetch(`/api/upload-image/${activeIdx}`, {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await res.json();
-    if (data.ok) {
-      script.slides[activeIdx] = data.slide;
-      toast('Image uploadée');
-      renderPreviewPanel();
-      renderEditPanel();
-      setStatus('');
-    } else {
-      toast('Erreur : ' + (data.error || 'inconnue'), 'error');
-      setStatus('');
-    }
-  };
+  const dropZone = document.getElementById('drop-zone');
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) uploadImageFile(activeIdx, file);
+  });
 }
 
 function renderCaptionSection() {
