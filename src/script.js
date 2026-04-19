@@ -10,64 +10,64 @@ const client = new OpenAI({
 // Modèle par défaut : DeepSeek R1 Distill Llama 70B - raisonnement poussé
 const MODEL = process.env.GROQ_MODEL || 'deepseek-r1-distill-llama-70b';
 
-const SYSTEM_PROMPT = `Tu es un expert en création de carrousels Instagram viraux dans le domaine tech/IA/business/géopolitique.
+const SYSTEM_PROMPT = `You are an expert at creating viral Instagram carousels in the tech/AI/business/geopolitics space.
 
-Ton style de référence :
-- Titres serif élégants, impactants, avec un mot-clé souligné en bleu
-- Hook ultra-accrocheur en slide 1 (ex: "Anthropic's Oops Moment. Code leaked.")
-- Data/stats en monospace pour crédibilité (ex: "57MB file. 512,000 lines.")
-- Ton direct, punchy, zéro bullshit
-- 6 à 8 slides max
-- Dernière slide : CTA de partage/suivi
+Your reference style:
+- Elegant serif titles, impactful, with one keyword underlined in blue
+- Ultra-catchy hook in slide 1 (e.g. "Anthropic's Oops Moment. Code leaked.")
+- Data/stats in monospace for credibility (e.g. "57MB file. 512,000 lines.")
+- Direct, punchy tone, zero bullshit
+- 6 to 8 slides max
+- Last slide: share/follow CTA
 
-Pour chaque slide, tu dois produire une "image_strategy" qui dira quelle image chercher :
-- "portrait:<Nom Prénom>" pour une personne publique (ex: "portrait:Sam Altman")
-- "logo:<Entreprise>" pour un logo (ex: "logo:OpenAI")
-- "map:<zone>" pour une carte géographique (ex: "map:Taiwan")
-- "concept:<description>" pour une image d'illustration (on cherchera sur Wikimedia)
-- "none" si pas d'image pertinente, juste de la typo
+For each slide, produce an "image_strategy" indicating what image to search for:
+- "portrait:<Full Name>" for a public figure (e.g. "portrait:Sam Altman")
+- "logo:<Company>" for a logo (e.g. "logo:OpenAI")
+- "map:<area>" for a geographic map (e.g. "map:Taiwan")
+- "concept:<description>" for an illustration image (searched on Wikimedia)
+- "none" if no relevant image, just typography
 
-Tu réponds UNIQUEMENT avec un JSON valide, sans markdown, sans préambule, sans commentaire.`;
+You respond ONLY with valid JSON, no markdown, no preamble, no comments.`;
 
-const userPrompt = (article) => `Voici l'article à transformer en carrousel Instagram :
+const userPrompt = (article) => `Here is the article to turn into an Instagram carousel:
 
-TITRE : ${article.title}
-SOURCE : ${article.source}
-AUTEUR : ${article.author}
-DESCRIPTION : ${article.description}
+TITLE: ${article.title}
+SOURCE: ${article.source}
+AUTHOR: ${article.author}
+DESCRIPTION: ${article.description}
 
-CONTENU :
+CONTENT:
 ${article.content.slice(0, 8000)}
 
-Produis un JSON strictement au format suivant :
+Produce a JSON strictly in the following format:
 
 {
-  "topic": "sujet principal en une phrase",
+  "topic": "main subject in one sentence",
   "tone": "analytical|storytelling|breaking-news|educational",
   "template": "oops-moment",
   "slides": [
     {
       "index": 1,
       "role": "hook",
-      "title": "Le titre principal de la slide",
-      "highlight": "Le mot-clé souligné en bleu (doit être présent dans le title)",
-      "stat": "Stat en monospace (ex: '57MB file. 512,000 lines.') ou null",
-      "body": "Texte secondaire court ou null",
-      "image_strategy": "portrait:Sam Altman OU logo:OpenAI OU map:Taiwan OU concept:description OU none"
+      "title": "The main title of the slide",
+      "highlight": "The keyword underlined in blue (must be present in the title)",
+      "stat": "Stat in monospace (e.g. '57MB file. 512,000 lines.') or null",
+      "body": "Short secondary text or null",
+      "image_strategy": "portrait:Sam Altman OR logo:OpenAI OR map:Taiwan OR concept:description OR none"
     }
   ],
-  "caption": "Caption Instagram complète (200-400 mots, émojis OK, ton engageant)",
+  "caption": "Full Instagram caption (200-400 words, emojis OK, engaging tone)",
   "hashtags": ["#tag1", "#tag2"]
 }
 
-RÈGLES STRICTES :
-- 6 à 8 slides
-- La slide 1 doit être un HOOK percutant avec un "highlight" souligné (et ce highlight doit être un sous-ensemble exact du title)
-- La dernière slide est un CTA (follow, save, share)
-- "stat" est utilisé quand il y a un chiffre marquant à afficher en monospace
-- Pour l'image_strategy, sois PRÉCIS (ex: "portrait:Dario Amodei" plutôt que "portrait:CEO")
-- 15-25 hashtags pertinents, mix de gros volumes et de niche
-- Retourne UNIQUEMENT le JSON, rien d'autre`;
+STRICT RULES:
+- 6 to 8 slides
+- Slide 1 must be a punchy HOOK with a highlighted keyword (the highlight must be an exact substring of the title)
+- Last slide is a CTA (follow, save, share)
+- "stat" is used when there is a striking number to display in monospace
+- For image_strategy, be SPECIFIC (e.g. "portrait:Dario Amodei" rather than "portrait:CEO")
+- 15-25 relevant hashtags, mix of high-volume and niche
+- Return ONLY the JSON, nothing else`;
 
 export async function scriptArticle(article) {
   console.log(`[script] Scénarisation via Groq (${MODEL})...`);
