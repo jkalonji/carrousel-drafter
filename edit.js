@@ -37,6 +37,13 @@ async function main() {
   }
   await fs.mkdir(uploadsDir, { recursive: true });
 
+  // Convertit un chemin absolu d'image en URL relative servie par Express
+  const toImageUrl = (imageFile) => {
+    if (!imageFile) return null;
+    const rel = path.relative(draftDir, imageFile).replace(/\\/g, '/');
+    return `/draft/${rel}`;
+  };
+
   const app = express();
   app.use(express.json({ limit: '20mb' }));
 
@@ -50,6 +57,9 @@ async function main() {
   // GET /api/script : retourne le JSON du draft
   app.get('/api/script', async (_req, res) => {
     const json = JSON.parse(await fs.readFile(scriptPath, 'utf-8'));
+    for (const slide of json.slides) {
+      if (slide.imageFile) slide.imageUrl = toImageUrl(slide.imageFile);
+    }
     res.json(json);
   });
 
@@ -125,7 +135,7 @@ async function main() {
       res.json({
         ok: true,
         found: !!result,
-        slide,
+        slide: { ...slide, imageUrl: toImageUrl(slide.imageFile) },
         url: `/draft/slide-${String(idx + 1).padStart(2, '0')}.png?t=${Date.now()}`,
       });
     } catch (e) {
@@ -161,7 +171,7 @@ async function main() {
 
       res.json({
         ok: true,
-        slide,
+        slide: { ...slide, imageUrl: toImageUrl(slide.imageFile) },
         url: `/draft/slide-${String(idx + 1).padStart(2, '0')}.png?t=${Date.now()}`,
       });
     } catch (e) {

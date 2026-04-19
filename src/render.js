@@ -92,11 +92,16 @@ export async function renderSingleSlide(script, slide, slideIndex, totalSlides, 
 
 async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
   const isLast = i === total - 1;
+  const imageStyle = (slide.imageX !== undefined)
+    ? `position:absolute;left:${slide.imageX}%;top:${slide.imageY}%;width:${slide.imageW ?? 80}%;max-width:none;max-height:none;height:auto;margin:0;border-radius:8px;object-fit:contain;`
+    : '';
+
   const data = {
     title_lines: buildTitleHtml(slide.title, slide.highlight),
     body: slide.body || '',
     stat: slide.stat || '',
     image: slide.imageFile ? `file://${slide.imageFile.replace(/\\/g, '/')}` : '',
+    image_style: imageStyle,
     missing_image_note: slide.missingImageNote || '',
     footer_text: isLast ? 'Follow for more' : i === 0 ? 'Swipe to Know More' : '',
     footer_left: !isLast && i > 0,
