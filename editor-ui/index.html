@@ -273,17 +273,25 @@
     white-space: nowrap;
     pointer-events: none;
   }
-  .el-resize {
+  .rh {
     position: absolute;
-    right: -7px;
-    bottom: -7px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    cursor: se-resize;
-    border: 2px solid white;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    width: 8px;
+    height: 8px;
+    background: white;
+    border: 2px solid;
+    border-color: inherit;
+    border-radius: 2px;
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
   }
+  .rh-n  { top:-5px;    left:50%;    transform:translateX(-50%); cursor:n-resize;  }
+  .rh-s  { bottom:-5px; left:50%;    transform:translateX(-50%); cursor:s-resize;  }
+  .rh-e  { right:-5px;  top:50%;     transform:translateY(-50%); cursor:e-resize;  }
+  .rh-w  { left:-5px;   top:50%;     transform:translateY(-50%); cursor:w-resize;  }
+  .rh-ne { top:-5px;    right:-5px;  cursor:ne-resize;  }
+  .rh-nw { top:-5px;    left:-5px;   cursor:nw-resize;  }
+  .rh-se { bottom:-5px; right:-5px;  cursor:se-resize;  }
+  .rh-sw { bottom:-5px; left:-5px;   cursor:sw-resize;  }
 </style>
 </head>
 <body>
@@ -512,10 +520,11 @@ function initPlacementCanvas(slide) {
     const h = slide[`${el.key}H`] ?? el.def.h;
     const px = (x / 100) * CW, py = (y / 100) * CH;
     const pw = (w / 100) * CW, ph = (h / 100) * CH;
+    const rhs = ['n','s','e','w','ne','nw','se','sw'].map(d => `<div class="rh rh-${d}" data-dir="${d}"></div>`).join('');
     return `<div class="el-handle" data-key="${el.key}"
               style="left:${px}px;top:${py}px;width:${pw}px;height:${ph}px;border-color:${el.color};">
               <span class="el-label" style="background:${el.color};">${el.label}</span>
-              <div class="el-resize" style="background:${el.color};"></div>
+              ${rhs}
             </div>`;
   }).join('');
 
@@ -543,40 +552,46 @@ function initPlacementCanvas(slide) {
   canvasController = new AbortController();
   const { signal } = canvasController;
 
-  let active = null; // { key, handle, dragging|resizing, startMX, startMY, startL, startT, startW }
+  let active = null;
 
   document.querySelectorAll('.el-handle').forEach(handle => {
     const key = handle.dataset.key;
-    const resizeBtn = handle.querySelector('.el-resize');
-
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (resizeBtn.contains(e.target)) {
-        active = { key, handle, resizing: true, startMX: e.clientX, startMY: e.clientY,
-          startW: parseFloat(handle.style.width), startH: parseFloat(handle.style.height) };
-      } else {
-        active = { key, handle, dragging: true, startMX: e.clientX, startMY: e.clientY,
-          startL: parseFloat(handle.style.left), startT: parseFloat(handle.style.top) };
-      }
+      const rh = e.target.closest('.rh');
+      const base = {
+        key, handle,
+        startMX: e.clientX, startMY: e.clientY,
+        startL: parseFloat(handle.style.left), startT: parseFloat(handle.style.top),
+        startW: parseFloat(handle.style.width), startH: parseFloat(handle.style.height),
+      };
+      active = rh ? { ...base, mode: 'resize', dir: rh.dataset.dir } : { ...base, mode: 'drag' };
     });
   });
 
   document.addEventListener('mousemove', (e) => {
     if (!active) return;
-    const { handle, dragging, resizing, startMX, startMY, startL, startT, startW } = active;
-    if (dragging) {
-      handle.style.left = `${Math.max(0, Math.min(CW - parseFloat(handle.style.width),  startL + e.clientX - startMX))}px`;
-      handle.style.top  = `${Math.max(0, Math.min(CH - parseFloat(handle.style.height), startT + e.clientY - startMY))}px`;
-    } else if (resizing) {
-      handle.style.width  = `${Math.max(30, Math.min(CW - parseFloat(handle.style.left), startW + e.clientX - startMX))}px`;
-      handle.style.height = `${Math.max(15, Math.min(CH - parseFloat(handle.style.top),  startH + e.clientY - startMY))}px`;
+    const { handle, mode, dir, startMX, startMY, startL, startT, startW, startH } = active;
+    const dx = e.clientX - startMX, dy = e.clientY - startMY;
+    if (mode === 'drag') {
+      handle.style.left = `${Math.max(0, Math.min(CW - startW, startL + dx))}px`;
+      handle.style.top  = `${Math.max(0, Math.min(CH - startH, startT + dy))}px`;
+    } else {
+      let l = startL, t = startT, w = startW, h = startH;
+      if (dir.includes('e')) w = Math.max(30, Math.min(CW - l,           startW + dx));
+      if (dir.includes('s')) h = Math.max(15, Math.min(CH - t,           startH + dy));
+      if (dir.includes('w')) { w = Math.max(30, Math.min(startW + startL, startW - dx)); l = startL + startW - w; }
+      if (dir.includes('n')) { h = Math.max(15, Math.min(startH + startT, startH - dy)); t = startT + startH - h; }
+      handle.style.left   = `${l}px`;
+      handle.style.top    = `${t}px`;
+      handle.style.width  = `${w}px`;
+      handle.style.height = `${h}px`;
     }
   }, { signal });
 
   document.addEventListener('mouseup', () => {
     if (!active) return;
-    const { key, handle } = active;
-    active = null;
+    const { key, handle } = active; active = null;
     const s = script.slides[activeIdx];
     s[`${key}X`] = Math.round((parseFloat(handle.style.left)   / CW) * 1000) / 10;
     s[`${key}Y`] = Math.round((parseFloat(handle.style.top)    / CH) * 1000) / 10;
