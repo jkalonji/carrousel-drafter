@@ -509,7 +509,7 @@ function initPlacementCanvas(slide) {
     const x = slide[`${el.key}X`] ?? el.def.x;
     const y = slide[`${el.key}Y`] ?? el.def.y;
     const w = slide[`${el.key}W`] ?? el.def.w;
-    const h = el.def.h;
+    const h = slide[`${el.key}H`] ?? el.def.h;
     const px = (x / 100) * CW, py = (y / 100) * CH;
     const pw = (w / 100) * CW, ph = (h / 100) * CH;
     return `<div class="el-handle" data-key="${el.key}"
@@ -552,7 +552,8 @@ function initPlacementCanvas(slide) {
     handle.addEventListener('mousedown', (e) => {
       e.preventDefault(); e.stopPropagation();
       if (resizeBtn.contains(e.target)) {
-        active = { key, handle, resizing: true, startMX: e.clientX, startW: parseFloat(handle.style.width) };
+        active = { key, handle, resizing: true, startMX: e.clientX, startMY: e.clientY,
+          startW: parseFloat(handle.style.width), startH: parseFloat(handle.style.height) };
       } else {
         active = { key, handle, dragging: true, startMX: e.clientX, startMY: e.clientY,
           startL: parseFloat(handle.style.left), startT: parseFloat(handle.style.top) };
@@ -567,7 +568,8 @@ function initPlacementCanvas(slide) {
       handle.style.left = `${Math.max(0, Math.min(CW - parseFloat(handle.style.width),  startL + e.clientX - startMX))}px`;
       handle.style.top  = `${Math.max(0, Math.min(CH - parseFloat(handle.style.height), startT + e.clientY - startMY))}px`;
     } else if (resizing) {
-      handle.style.width = `${Math.max(30, Math.min(CW - parseFloat(handle.style.left), startW + e.clientX - startMX))}px`;
+      handle.style.width  = `${Math.max(30, Math.min(CW - parseFloat(handle.style.left), startW + e.clientX - startMX))}px`;
+      handle.style.height = `${Math.max(15, Math.min(CH - parseFloat(handle.style.top),  startH + e.clientY - startMY))}px`;
     }
   }, { signal });
 
@@ -576,9 +578,10 @@ function initPlacementCanvas(slide) {
     const { key, handle } = active;
     active = null;
     const s = script.slides[activeIdx];
-    s[`${key}X`] = Math.round((parseFloat(handle.style.left)  / CW) * 1000) / 10;
-    s[`${key}Y`] = Math.round((parseFloat(handle.style.top)   / CH) * 1000) / 10;
-    s[`${key}W`] = Math.round((parseFloat(handle.style.width) / CW) * 1000) / 10;
+    s[`${key}X`] = Math.round((parseFloat(handle.style.left)   / CW) * 1000) / 10;
+    s[`${key}Y`] = Math.round((parseFloat(handle.style.top)    / CH) * 1000) / 10;
+    s[`${key}W`] = Math.round((parseFloat(handle.style.width)  / CW) * 1000) / 10;
+    s[`${key}H`] = Math.round((parseFloat(handle.style.height) / CH) * 1000) / 10;
     saveAll().then(() => renderSlide(activeIdx));
   }, { signal });
 }

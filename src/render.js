@@ -40,7 +40,10 @@ function buildTitleHtml(title, highlight, style = '') {
 // Génère le style CSS inline pour un élément positionné librement
 function posStyle(key, slide, extra = '') {
   if (slide[`${key}X`] === undefined) return '';
-  return `position:absolute;left:${slide[`${key}X`]}%;top:${slide[`${key}Y`]}%;width:${slide[`${key}W`] ?? 80}%;margin:0;max-width:none;${extra}`;
+  const hPart = slide[`${key}H`] !== undefined
+    ? `height:${slide[`${key}H`]}%;max-height:none;`
+    : 'height:auto;';
+  return `position:absolute;left:${slide[`${key}X`]}%;top:${slide[`${key}Y`]}%;width:${slide[`${key}W`] ?? 80}%;max-width:none;margin:0;overflow:hidden;${hPart}${extra}`;
 }
 
 function escapeHtml(s) {
@@ -101,7 +104,7 @@ async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
   const titleStyle = posStyle('title', slide);
   const bodyStyle  = posStyle('body', slide);
   const statStyle  = posStyle('stat', slide);
-  const imageStyle = posStyle('image', slide, 'max-height:none;height:auto;border-radius:8px;object-fit:contain;');
+  const imageStyle = posStyle('image', slide, 'border-radius:8px;object-fit:cover;');
 
   const data = {
     title_lines: buildTitleHtml(slide.title, slide.highlight, titleStyle),
