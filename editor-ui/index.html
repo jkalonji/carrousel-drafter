@@ -62,15 +62,37 @@
     cursor: pointer;
     transition: box-shadow 0.15s, transform 0.15s;
     border: 2px solid transparent;
+    position: relative;
   }
   .slide-preview:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); }
   .slide-preview.active { border-color: #3250d8; }
-  .slide-preview.drag-over { border-color: #3250d8; background: #e8ecfb; transform: scale(1.02); }
   .slide-preview img {
     width: 100%;
     display: block;
     background: #8a9099;
+    transition: opacity 0.15s;
   }
+  .slide-preview.drag-over img { opacity: 0.35; }
+  .slide-preview .drop-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(50, 80, 216, 0.12);
+    border: 3px dashed #3250d8;
+    border-radius: 8px;
+    color: #3250d8;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+  .slide-preview .drop-overlay .drop-icon { font-size: 28px; }
+  .slide-preview.drag-over .drop-overlay { opacity: 1; }
   .slide-preview .label {
     padding: 10px 14px;
     font-size: 12px;
@@ -261,6 +283,10 @@ function renderPreviewPanel() {
     div.className = 'slide-preview' + (idx === activeIdx ? ' active' : '');
     div.innerHTML = `
       <img src="/draft/slide-${String(idx + 1).padStart(2, '0')}.png?t=${Date.now()}" alt="">
+      <div class="drop-overlay">
+        <span class="drop-icon">🖼️</span>
+        Déposer l'image ici
+      </div>
       <div class="label">
         <span class="role">${slide.role || 'slide'}</span>
         <span>Slide ${idx + 1} / ${script.slides.length}</span>
@@ -269,7 +295,7 @@ function renderPreviewPanel() {
     div.onclick = () => selectSlide(idx);
 
     div.addEventListener('dragover', (e) => { e.preventDefault(); div.classList.add('drag-over'); });
-    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('dragleave', (e) => { if (!div.contains(e.relatedTarget)) div.classList.remove('drag-over'); });
     div.addEventListener('drop', (e) => {
       e.preventDefault();
       div.classList.remove('drag-over');
@@ -398,7 +424,7 @@ function renderEditPanel() {
     e.preventDefault();
     dropZone.classList.add('drag-over');
   });
-  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('dragleave', (e) => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('drag-over');
