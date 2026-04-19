@@ -319,12 +319,10 @@ function renderEditPanel() {
     ${slide.imageAttribution ? `<div class="hint" style="margin-bottom: 8px;">✓ ${escapeHtml(slide.imageAttribution)}</div>` : ''}
     ${slide.missingImageNote ? `<div class="hint" style="color: #b0342f; margin-bottom: 8px;">⚠ ${escapeHtml(slide.missingImageNote)}</div>` : ''}
 
+    <input type="file" id="file-upload" accept="image/*" style="display:none">
     <div class="image-actions">
       <button id="btn-refetch">🔄 Relancer la recherche</button>
-      <label>
-        📤 Uploader une image
-        <input type="file" id="file-upload" accept="image/*">
-      </label>
+      <button id="btn-upload">📤 Uploader une image</button>
     </div>
   `;
 
@@ -332,6 +330,8 @@ function renderEditPanel() {
   ['f-title', 'f-highlight', 'f-stat', 'f-body', 'f-image-strategy'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => scheduleSaveAndRender());
   });
+
+  document.getElementById('btn-upload').onclick = () => document.getElementById('file-upload').click();
 
   document.getElementById('btn-refetch').onclick = async () => {
     const strategy = document.getElementById('f-image-strategy').value;
