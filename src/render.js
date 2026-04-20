@@ -60,7 +60,7 @@ export async function renderSlides(script, slides, draftDir) {
 
     for (let i = 0; i < slides.length; i++) {
       const outPath = path.join(draftDir, `slide-${String(i + 1).padStart(2, '0')}.png`);
-      await renderSlideOnPage(page, tpl, slides[i], i, total, outPath);
+      await renderSlideOnPage(page, tpl, slides[i], i, total, outPath, script);
       outputs.push(outPath);
       console.log(`[render] ✓ slide ${i + 1}/${total}`);
     }
@@ -83,14 +83,14 @@ export async function renderSingleSlide(script, slide, slideIndex, totalSlides, 
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1080, height: 1350, deviceScaleFactor: 2 });
-    await renderSlideOnPage(page, tpl, slide, slideIndex, totalSlides, outPath);
+    await renderSlideOnPage(page, tpl, slide, slideIndex, totalSlides, outPath, script);
     return outPath;
   } finally {
     await browser.close();
   }
 }
 
-async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
+async function renderSlideOnPage(page, tpl, slide, i, total, outPath, script) {
   const isLast = i === total - 1;
   const data = {
     title_lines: buildTitleHtml(slide.title, slide.highlight),
@@ -98,10 +98,14 @@ async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
     stat: slide.stat || '',
     image: slide.imageFile ? `file://${slide.imageFile.replace(/\\/g, '/')}` : '',
     missing_image_note: slide.missingImageNote || '',
-    footer_text: isLast ? 'Follow for more' : i === 0 ? 'Swipe to Know More' : '',
+    footer_text: isLast ? 'Follow for more' : 'Swipe to Know More',
     footer_left: !isLast && i > 0,
     slide_number: String(i + 1).padStart(2, '0'),
     total_slides: String(total).padStart(2, '0'),
+    cards: slide.cards || [],
+    has_cards: !!(slide.cards && slide.cards.length > 0),
+    topic_label: script?.topic_label || '',
+    handle: process.env.INSTAGRAM_HANDLE || '',
   };
 
   const html = renderTemplate(tpl, data);

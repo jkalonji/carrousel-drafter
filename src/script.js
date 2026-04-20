@@ -10,6 +10,8 @@ const client = new OpenAI({
 // Modèle par défaut : DeepSeek R1 Distill Llama 70B - raisonnement poussé
 const MODEL = process.env.GROQ_MODEL || 'deepseek-r1-distill-llama-70b';
 
+const VALID_TEMPLATES = ['oops-moment', '2facts1result', '3facts'];
+
 const SYSTEM_PROMPT = `You are an expert at creating viral Instagram carousels in the tech/AI/business/geopolitics space.
 
 Your reference style:
@@ -19,6 +21,11 @@ Your reference style:
 - Direct, punchy tone, zero bullshit
 - 6 to 8 slides max
 - Last slide: share/follow CTA
+
+Available templates (choose the most appropriate based on content type):
+- "oops-moment": Breaking news, dramatic reveals, scandals. Full-width title with blue-highlighted keyword, optional stats in monospace, body text, and images. Best for: data leaks, controversies, surprising announcements.
+- "2facts1result": Structured analysis with info cards. Detail slides feature 2 fact cards (with key-value data pairs) on the left and 1 result/conclusion card on the right in a grid. Best for: technical breakdowns, incident analyses, product specs with a conclusion.
+- "3facts": Three key insights presented as vertically stacked cards, each with an emoji icon, bold title, and monospace explanation. Best for: deep dives, multi-angle analysis, feature breakdowns, "what you need to know" content.
 
 For each slide, produce an "image_strategy" indicating what image to search for:
 - "portrait:<Full Name>" for a public figure (e.g. "portrait:Sam Altman")
@@ -43,28 +50,46 @@ Produce a JSON strictly in the following format:
 
 {
   "topic": "main subject in one sentence",
+  "topic_label": "SHORT UPPERCASE LABEL (e.g. ANTHROPIC, OPENAI, TESLA, EU, US-CHINA)",
   "tone": "analytical|storytelling|breaking-news|educational",
-  "template": "oops-moment",
+  "template": "oops-moment OR 2facts1result OR 3facts",
   "slides": [
     {
       "index": 1,
-      "role": "hook",
+      "role": "hook|detail|cta",
       "title": "The main title of the slide",
       "highlight": "The keyword underlined in blue (must be present in the title)",
       "stat": "Stat in monospace (e.g. '57MB file. 512,000 lines.') or null",
       "body": "Short secondary text or null",
-      "image_strategy": "portrait:Sam Altman OR logo:OpenAI OR map:Taiwan OR concept:description OR none"
+      "image_strategy": "portrait:Sam Altman OR logo:OpenAI OR map:Taiwan OR concept:description OR none",
+      "cards": null
     }
   ],
   "caption": "Full Instagram caption (200-400 words, emojis OK, engaging tone)",
   "hashtags": ["#tag1", "#tag2"]
 }
 
+CARDS FORMAT (used on "detail" slides when template is "2facts1result" or "3facts"):
+
+For "2facts1result", cards must be an array of exactly 3 objects:
+  - Cards 1-2 are fact cards with key-value data:
+    { "card_title": "THE CULPRIT", "card_items": [{"label": "Package", "value": "v2.1.88"}, ...] }
+  - Card 3 is the result/conclusion card:
+    { "card_title": "THE RESULT", "card_body": "Explanatory text...", "card_bottom_line": "Conclusion sentence." }
+
+For "3facts", cards must be an array of exactly 3 objects:
+  { "card_icon": "🕵️", "card_title": "Secret logic revealed", "card_body": "Explanation text in monospace..." }
+
+Hook and CTA slides do NOT use cards (set cards to null).
+
 STRICT RULES:
 - 6 to 8 slides
 - Slide 1 must be a punchy HOOK with a highlighted keyword (the highlight must be an exact substring of the title)
 - Last slide is a CTA (follow, save, share)
+- Choose the template that best fits the article content type
 - "stat" is used when there is a striking number to display in monospace
+- For "2facts1result" detail slides: exactly 3 cards (2 fact + 1 result), 3-4 key-value items per fact card
+- For "3facts" detail slides: exactly 3 cards with emoji icon, short title, and 2-3 sentence body
 - For image_strategy, be SPECIFIC (e.g. "portrait:Dario Amodei" rather than "portrait:CEO")
 - 15-25 relevant hashtags, mix of high-volume and niche
 - Return ONLY the JSON, nothing else`;
@@ -106,14 +131,32 @@ export async function scriptArticle(article) {
     if (!parsed.slides || !Array.isArray(parsed.slides)) {
       throw new Error('Le JSON ne contient pas de tableau "slides"');
     }
-    if (!parsed.template) parsed.template = 'oops-moment';
+    if (!parsed.template || !VALID_TEMPLATES.includes(parsed.template)) {
+      console.warn(`[script] Template inconnu "${parsed.template}", fallback vers oops-moment`);
+      parsed.template = 'oops-moment';
+    }
+    if (!parsed.topic_label) parsed.topic_label = '';
 
-    // Nettoyer toute balise ou artefact résiduel dans les champs texte
     for (const slide of parsed.slides) {
       slide.title = stripTags(slide.title);
       slide.highlight = stripTags(slide.highlight);
       slide.stat = stripTags(slide.stat);
       slide.body = stripTags(slide.body);
+
+      if (slide.cards && Array.isArray(slide.cards)) {
+        for (const card of slide.cards) {
+          card.card_title = stripTags(card.card_title);
+          card.card_body = stripTags(card.card_body);
+          card.card_bottom_line = stripTags(card.card_bottom_line);
+          card.card_icon = stripTags(card.card_icon);
+          if (card.card_items && Array.isArray(card.card_items)) {
+            for (const item of card.card_items) {
+              item.label = stripTags(item.label);
+              item.value = stripTags(item.value);
+            }
+          }
+        }
+      }
     }
     parsed.caption = stripTags(parsed.caption);
 
