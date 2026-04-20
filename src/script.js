@@ -106,7 +106,10 @@ export async function scriptArticle(article) {
     if (!parsed.slides || !Array.isArray(parsed.slides)) {
       throw new Error('Le JSON ne contient pas de tableau "slides"');
     }
-    if (!parsed.template) parsed.template = 'oops-moment';
+    const KNOWN_TEMPLATES = ['oops-moment', 'achievement'];
+    if (!parsed.template || !KNOWN_TEMPLATES.includes(parsed.template)) {
+      parsed.template = 'oops-moment';
+    }
 
     // Nettoyer toute balise ou artefact résiduel dans les champs texte
     for (const slide of parsed.slides) {

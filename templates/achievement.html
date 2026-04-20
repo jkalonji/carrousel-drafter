@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1080px;
+    height: 1350px;
+  }
+
+  body {
+    font-family: 'Playfair Display', serif;
+    background-color: #0f1117;
+    background-image:
+      radial-gradient(ellipse at 80% 10%, rgba(212,175,55,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 20% 90%, rgba(50,80,216,0.10) 0%, transparent 55%);
+    color: #f0ece0;
+    padding: 90px 80px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+
+  /* Bande décorative verticale gauche */
+  body::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 6px;
+    background: linear-gradient(180deg, #d4af37 0%, #f0c040 50%, #d4af37 100%);
+  }
+
+  .slide-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+  }
+
+  .title {
+    font-weight: 700;
+    font-size: 120px;
+    line-height: 1.04;
+    letter-spacing: -2px;
+    margin-bottom: 40px;
+  }
+
+  .title.small  { font-size: 90px; }
+  .title.xsmall { font-size: 70px; }
+
+  .highlight {
+    display: inline-block;
+    font-style: italic;
+    color: #d4af37;
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-underline-offset: 8px;
+    margin-top: 20px;
+  }
+
+  .stat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-top: 50px;
+    max-width: 85%;
+    color: #d4af37;
+  }
+
+  .body-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 40px;
+    line-height: 1.35;
+    margin-top: 40px;
+    max-width: 90%;
+    font-weight: 400;
+    color: #ccc8b8;
+  }
+
+  .slide-image {
+    max-width: 100%;
+    max-height: 500px;
+    border-radius: 8px;
+    margin-top: 40px;
+    object-fit: cover;
+    align-self: flex-start;
+  }
+
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    opacity: 0.7;
+    color: #d4af37;
+  }
+
+  .footer.left {
+    justify-content: space-between;
+  }
+
+  .slide-number { opacity: 0.6; }
+
+  .missing-image-placeholder {
+    margin-top: 40px;
+    padding: 30px;
+    border: 2px dashed rgba(212,175,55,0.35);
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    color: rgba(212,175,55,0.6);
+    max-width: 90%;
+  }
+</style>
+</head>
+<body>
+  <div class="slide-content">
+    {{#title_lines}}
+    <div class="title {{title_size}}" style="{{{title_style}}}">{{{title_html}}}</div>
+    {{/title_lines}}
+
+    {{#body}}
+    <div class="body-text" style="{{{body_style}}}">{{body}}</div>
+    {{/body}}
+
+    {{#stat}}
+    <div class="stat" style="{{{stat_style}}}">{{stat}}</div>
+    {{/stat}}
+
+    {{#image}}
+    <img class="slide-image" src="{{image}}" style="{{{image_style}}}" alt="">
+    {{/image}}
+
+    {{#missing_image_note}}
+    <div class="missing-image-placeholder">
+      [IMAGE MANQUANTE] {{missing_image_note}}
+    </div>
+    {{/missing_image_note}}
+  </div>
+
+  <div class="footer {{#footer_left}}left{{/footer_left}}">
+    {{#footer_left}}<span class="slide-number">{{slide_number}} / {{total_slides}}</span>{{/footer_left}}
+    <span>{{footer_text}}</span>
+  </div>
+</body>
+</html>
