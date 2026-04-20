@@ -117,7 +117,7 @@ async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
   const titleStyle = posStyle('title', slide);
   const bodyStyle  = posStyle('body', slide);
   const statStyle  = posStyle('stat', slide);
-  const imageStyle = posStyle('image', slide, 'border-radius:8px;object-fit:cover;');
+  const imageStyle = posStyle('image', slide, 'border-radius:8px;object-fit:contain;');
 
   const imageDataUrl = slide.imageFile ? await fileToDataUrl(slide.imageFile) : '';
 
