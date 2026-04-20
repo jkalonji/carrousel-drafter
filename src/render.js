@@ -2,7 +2,6 @@
 // Convertit chaque slide en PNG 1080x1350 via Puppeteer
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer';
 
 // Mini moteur de template "à la Mustache" pour nos besoins simples
@@ -100,6 +99,19 @@ export async function renderSingleSlide(script, slide, slideIndex, totalSlides, 
   }
 }
 
+async function fileToDataUrl(filePath) {
+  try {
+    const buf = await fs.readFile(filePath);
+    const ext = path.extname(filePath).toLowerCase().slice(1);
+    const mime = ext === 'jpg' ? 'image/jpeg'
+               : ext === 'svg' ? 'image/svg+xml'
+               : `image/${ext}`;
+    return `data:${mime};base64,${buf.toString('base64')}`;
+  } catch {
+    return '';
+  }
+}
+
 async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
   const isLast = i === total - 1;
   const titleStyle = posStyle('title', slide);
@@ -107,13 +119,15 @@ async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
   const statStyle  = posStyle('stat', slide);
   const imageStyle = posStyle('image', slide, 'border-radius:8px;object-fit:cover;');
 
+  const imageDataUrl = slide.imageFile ? await fileToDataUrl(slide.imageFile) : '';
+
   const data = {
     title_lines: buildTitleHtml(slide.title, slide.highlight, titleStyle),
     body: slide.body || '',
     body_style: bodyStyle,
     stat: slide.stat || '',
     stat_style: statStyle,
-    image: slide.imageFile ? pathToFileURL(slide.imageFile).href : '',
+    image: imageDataUrl,
     image_style: imageStyle,
     missing_image_note: slide.missingImageNote || '',
     footer_text: isLast ? 'Follow for more' : i === 0 ? 'Swipe to Know More' : '',
