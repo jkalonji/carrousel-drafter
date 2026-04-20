@@ -8,7 +8,8 @@ const client = new OpenAI({
 });
 
 // Modèle par défaut : DeepSeek R1 Distill Llama 70B - raisonnement poussé
-const MODEL = process.env.GROQ_MODEL || 'deepseek-r1-distill-llama-70b';
+const MODEL         = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const FALLBACK_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
 
 const SYSTEM_PROMPT = `You are an expert at creating viral Instagram carousels in the tech/AI/business/geopolitics space.
 
@@ -60,20 +61,35 @@ STRICT RULES:
 - 15-25 relevant hashtags, mix of high-volume and niche
 - Return ONLY the JSON, nothing else`;
 
-export async function scriptArticle(article) {
-  console.log(`[script] Scénarisation via Groq (${MODEL})...`);
-
+async function callGroq(model, article) {
   const completion = await client.chat.completions.create({
-    model: MODEL,
-    max_tokens: 8192, // DeepSeek R1 a besoin de tokens pour son bloc <think>
-    temperature: 0.6, // recommandé par DeepSeek pour R1
+    model,
+    max_tokens: 4096,
+    temperature: 0.6,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userPrompt(article) },
     ],
   });
+  return completion.choices[0]?.message?.content?.trim() || '';
+}
 
-  const raw = completion.choices[0]?.message?.content?.trim() || '';
+export async function scriptArticle(article) {
+  let model = MODEL;
+  console.log(`[script] Scénarisation via Groq (${model})...`);
+
+  let raw;
+  try {
+    raw = await callGroq(model, article);
+  } catch (err) {
+    if (err.status === 429 && model !== FALLBACK_MODEL) {
+      console.warn(`[script] Rate limit atteint sur ${model}, bascule sur ${FALLBACK_MODEL}...`);
+      model = FALLBACK_MODEL;
+      raw = await callGroq(model, article);
+    } else {
+      throw err;
+    }
+  }
 
   // 1. Retirer le bloc de raisonnement <think>...</think> de DeepSeek R1
   let clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
