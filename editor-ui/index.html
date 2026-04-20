@@ -428,18 +428,10 @@ function renderEditPanel() {
 
     <div class="section-title">Image</div>
 
-    <div class="field">
-      <label>Stratégie de recherche</label>
-      <input type="text" id="f-image-strategy" value="${escapeHtml(slide.image_strategy || 'none')}">
-      <div class="hint">Ex: portrait:Sam Altman · logo:OpenAI · map:Taiwan · concept:warehouse robot · none</div>
-    </div>
-
     ${slide.imageAttribution ? `<div class="hint" style="margin-bottom: 8px;">✓ ${escapeHtml(slide.imageAttribution)}</div>` : ''}
-    ${slide.missingImageNote ? `<div class="hint" style="color: #b0342f; margin-bottom: 8px;">⚠ ${escapeHtml(slide.missingImageNote)}</div>` : ''}
 
     <input type="file" id="file-upload" accept="image/*" style="display:none">
     <div class="image-actions">
-      <button id="btn-refetch">🔄 Relancer la recherche</button>
       <button id="btn-upload">📤 Uploader une image</button>
     </div>
     <div class="drop-zone" id="drop-zone">Glisse une image ici</div>
@@ -449,7 +441,7 @@ function renderEditPanel() {
   `;
 
   // Listeners sur les champs texte
-  ['f-title', 'f-highlight', 'f-stat', 'f-body', 'f-image-strategy'].forEach(id => {
+  ['f-title', 'f-highlight', 'f-stat', 'f-body'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => scheduleSaveAndRender());
   });
 
@@ -457,28 +449,6 @@ function renderEditPanel() {
   document.getElementById('file-upload').onchange = (e) => {
     const file = e.target.files[0];
     if (file) uploadImageFile(activeIdx, file);
-  };
-
-  document.getElementById('btn-refetch').onclick = async () => {
-    const strategy = document.getElementById('f-image-strategy').value;
-    await saveAll();
-    setStatus('Recherche en cours...', 'saving');
-    const res = await fetch(`/api/refetch-image/${activeIdx}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strategy }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      script.slides[activeIdx] = data.slide;
-      toast(data.found ? 'Image trouvée' : 'Aucune image trouvée');
-      renderPreviewPanel();
-      renderEditPanel();
-      setStatus('');
-    } else {
-      toast('Erreur : ' + (data.error || 'inconnue'), 'error');
-      setStatus('');
-    }
   };
 
   const dropZone = document.getElementById('drop-zone');
@@ -645,11 +615,10 @@ async function saveAll() {
     const slide = script.slides[activeIdx];
     const titleEl = document.getElementById('f-title');
     if (titleEl) {
-      slide.title = titleEl.value;
+      slide.title     = titleEl.value;
       slide.highlight = document.getElementById('f-highlight').value;
-      slide.stat = document.getElementById('f-stat').value;
-      slide.body = document.getElementById('f-body').value;
-      slide.image_strategy = document.getElementById('f-image-strategy').value;
+      slide.stat      = document.getElementById('f-stat').value;
+      slide.body      = document.getElementById('f-body').value;
     }
   }
   const captionEl = document.getElementById('f-caption');

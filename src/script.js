@@ -20,13 +20,6 @@ Your reference style:
 - 6 to 8 slides max
 - Last slide: share/follow CTA
 
-For each slide, produce an "image_strategy" indicating what image to search for:
-- "portrait:<Full Name>" for a public figure (e.g. "portrait:Sam Altman")
-- "logo:<Company>" for a logo (e.g. "logo:OpenAI")
-- "map:<area>" for a geographic map (e.g. "map:Taiwan")
-- "concept:<description>" for an illustration image (searched on Wikimedia)
-- "none" if no relevant image, just typography
-
 You respond ONLY with valid JSON, no markdown, no preamble, no comments.`;
 
 const userPrompt = (article) => `Here is the article to turn into an Instagram carousel:
@@ -52,8 +45,7 @@ Produce a JSON strictly in the following format:
       "title": "The main title of the slide",
       "highlight": "The keyword underlined in blue (must be present in the title)",
       "stat": "Stat in monospace (e.g. '57MB file. 512,000 lines.') or null",
-      "body": "Short secondary text or null",
-      "image_strategy": "portrait:Sam Altman OR logo:OpenAI OR map:Taiwan OR concept:description OR none"
+      "body": "Short secondary text or null"
     }
   ],
   "caption": "Full Instagram caption (200-400 words, emojis OK, engaging tone)",
@@ -65,7 +57,6 @@ STRICT RULES:
 - Slide 1 must be a punchy HOOK with a highlighted keyword (the highlight must be an exact substring of the title)
 - Last slide is a CTA (follow, save, share)
 - "stat" is used when there is a striking number to display in monospace
-- For image_strategy, be SPECIFIC (e.g. "portrait:Dario Amodei" rather than "portrait:CEO")
 - 15-25 relevant hashtags, mix of high-volume and niche
 - Return ONLY the JSON, nothing else`;
 
@@ -113,10 +104,11 @@ export async function scriptArticle(article) {
 
     // Nettoyer toute balise ou artefact résiduel dans les champs texte
     for (const slide of parsed.slides) {
-      slide.title = stripTags(slide.title);
+      slide.title     = stripTags(slide.title);
       slide.highlight = stripTags(slide.highlight);
-      slide.stat = stripTags(slide.stat);
-      slide.body = stripTags(slide.body);
+      slide.stat      = stripTags(slide.stat);
+      slide.body      = stripTags(slide.body);
+      delete slide.image_strategy;
     }
     parsed.caption = stripTags(parsed.caption);
 

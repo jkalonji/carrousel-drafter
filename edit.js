@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
 import open from 'open';
 
 import { renderSingleSlide } from './src/render.js';
-import { findImageForSlide } from './src/images.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -100,44 +99,6 @@ async function main() {
         await renderSingleSlide(script, script.slides[i], i, total, outPath);
       }
       res.json({ ok: true, count: total });
-    } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // POST /api/refetch-image/:index : relance la recherche d'image pour une slide
-  app.post('/api/refetch-image/:index', async (req, res) => {
-    try {
-      const idx = parseInt(req.params.index, 10);
-      const strategy = req.body?.strategy;
-      const script = JSON.parse(await fs.readFile(scriptPath, 'utf-8'));
-      const slide = script.slides[idx];
-      if (!slide) return res.status(404).json({ error: 'slide introuvable' });
-
-      if (strategy) slide.image_strategy = strategy;
-      const result = await findImageForSlide(slide.image_strategy, imagesDir);
-
-      if (result) {
-        slide.imageFile = result.path;
-        slide.imageAttribution = result.attribution;
-        slide.missingImageNote = '';
-      } else {
-        slide.imageFile = null;
-        slide.missingImageNote = `Cherche une image pour : ${slide.image_strategy}`;
-      }
-
-      await fs.writeFile(scriptPath, JSON.stringify(script, null, 2), 'utf-8');
-
-      const outPath = path.join(draftDir, `slide-${String(idx + 1).padStart(2, '0')}.png`);
-      await renderSingleSlide(script, slide, idx, script.slides.length, outPath);
-
-      res.json({
-        ok: true,
-        found: !!result,
-        slide: { ...slide, imageUrl: toImageUrl(slide.imageFile) },
-        url: `/draft/slide-${String(idx + 1).padStart(2, '0')}.png?t=${Date.now()}`,
-      });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: e.message });
