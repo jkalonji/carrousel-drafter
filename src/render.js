@@ -2,6 +2,7 @@
 // Convertit chaque slide en PNG 1080x1350 via Puppeteer
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import puppeteer from 'puppeteer';
 
 // Mini moteur de template "à la Mustache" pour nos besoins simples
@@ -112,7 +113,7 @@ async function renderSlideOnPage(page, tpl, slide, i, total, outPath) {
     body_style: bodyStyle,
     stat: slide.stat || '',
     stat_style: statStyle,
-    image: slide.imageFile ? `file://${slide.imageFile.replace(/\\/g, '/')}` : '',
+    image: slide.imageFile ? pathToFileURL(slide.imageFile).href : '',
     image_style: imageStyle,
     missing_image_note: slide.missingImageNote || '',
     footer_text: isLast ? 'Follow for more' : i === 0 ? 'Swipe to Know More' : '',
