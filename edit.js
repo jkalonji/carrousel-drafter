@@ -141,6 +141,33 @@ async function main() {
     }
   });
 
+  // POST /api/swap-slides : échange deux slides (renommage de PNGs, pas de re-rendu)
+  app.post('/api/swap-slides', async (req, res) => {
+    try {
+      const { idxA, idxB } = req.body;
+      const script = JSON.parse(await fs.readFile(scriptPath, 'utf-8'));
+
+      // Échanger dans le JSON
+      [script.slides[idxA], script.slides[idxB]] = [script.slides[idxB], script.slides[idxA]];
+      script.slides.forEach((s, i) => { s.index = i + 1; });
+      await fs.writeFile(scriptPath, JSON.stringify(script, null, 2), 'utf-8');
+
+      // Échanger les PNGs via un fichier temporaire
+      const pad = (n) => String(n + 1).padStart(2, '0');
+      const pathA = path.join(draftDir, `slide-${pad(idxA)}.png`);
+      const pathB = path.join(draftDir, `slide-${pad(idxB)}.png`);
+      const pathTmp = path.join(draftDir, `slide-tmp-${Date.now()}.png`);
+      await fs.rename(pathA, pathTmp);
+      await fs.rename(pathB, pathA);
+      await fs.rename(pathTmp, pathB);
+
+      res.json({ ok: true });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // POST /api/apply-media : télécharge une image suggérée et l'applique à une slide
   app.post('/api/apply-media', async (req, res) => {
     try {

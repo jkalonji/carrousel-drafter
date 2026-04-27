@@ -681,9 +681,17 @@ async function saveAndRenderAll() {
 async function moveSlide(idx, dir) {
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= script.slides.length) return;
+  const res = await fetch('/api/swap-slides', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idxA: idx, idxB: newIdx }),
+  });
+  const data = await res.json();
+  if (!data.ok) { toast('Erreur : ' + (data.error || 'inconnue'), 'error'); return; }
+  // Mettre à jour le script local
   [script.slides[idx], script.slides[newIdx]] = [script.slides[newIdx], script.slides[idx]];
   script.slides.forEach((s, i) => { s.index = i + 1; });
-  await saveAndRenderAll();
+  renderPreviewPanel();
   selectSlide(newIdx);
 }
 
