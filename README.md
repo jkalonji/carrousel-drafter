@@ -53,9 +53,10 @@ GROQ_API_KEY=gsk_xxxxx
 
 ## Modèles Groq disponibles
 
-- `deepseek-r1-distill-llama-70b` (défaut) : raisonnement poussé, meilleure qualité éditoriale
-- `llama-3.3-70b-versatile` : plus rapide, bon compromis
-- `llama-3.1-8b-instant` : très rapide, qualité moindre
+- `openai/gpt-oss-120b` **(recommandé)** : modèle privilégié pour cet outil, meilleure qualité éditoriale
+- `deepseek-r1-distill-llama-70b` : raisonnement poussé
+- `llama-3.3-70b-versatile` : bon compromis qualité/vitesse
+- `llama-3.1-8b-instant` : très rapide, utilisé en interne pour l'extraction de faits
 
 ## Structure
 
