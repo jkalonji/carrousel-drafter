@@ -17,11 +17,19 @@ copy .env.example .env   # Windows
 
 ### 1. Générer un draft
 
+**Source unique :**
 ```bash
 node draft.js https://example.com/article-a-transformer
 ```
 
-Sortie dans `drafts/YYYY-MM-DD-<slug>/` : slides PNG + script.json + caption.md.
+**Plusieurs sources (synthèse croisée) :**
+```bash
+node draft.js https://source1.com/article https://source2.com/article https://source3.com/article
+```
+
+Les sources sont ingérées en parallèle. Le LLM reçoit les contenus de toutes les sources et produit un carrousel qui les croise et les synthétise. Le budget de tokens est réparti proportionnellement (8000 / 4000 / 2500 / 2000 chars par source selon le nombre total).
+
+Sortie dans `drafts/YYYY-MM-DD-<slug>/` (nommé d'après la première source) : slides PNG + script.json + caption.md.
 
 ### 2. Éditer un draft
 
