@@ -292,6 +292,47 @@
   .rh-nw { top:-5px;    left:-5px;   cursor:nw-resize;  }
   .rh-se { bottom:-5px; right:-5px;  cursor:se-resize;  }
   .rh-sw { bottom:-5px; left:-5px;   cursor:sw-resize;  }
+
+  .media-img-item {
+    cursor: pointer;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color 0.15s;
+  }
+  .media-img-item:hover { border-color: #3250d8; }
+  .media-img-item img { width: 100%; height: 70px; object-fit: cover; display: block; }
+  .media-img-item .media-src {
+    padding: 3px 6px;
+    font-size: 10px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #fafafa;
+  }
+  .media-video-item {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+    margin-bottom: 8px;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+    transition: background 0.15s;
+  }
+  .media-video-item:hover { background: #f5f5f7; }
+  .media-video-item img { width: 80px; height: 45px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+  .media-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: #888;
+    margin-bottom: 8px;
+  }
 </style>
 </head>
 <body>
@@ -331,11 +372,15 @@ async function loadScript() {
   document.getElementById('draft-meta').textContent =
     `${script.topic || 'Draft'} · ${script.slides.length} slides · template: ${script.template}`;
   renderPreviewPanel();
+  renderMediaPanel();
   renderCaptionSection();
 }
 
 function renderPreviewPanel() {
   const panel = document.getElementById('preview-panel');
+  // Préserver les panneaux additionnels avant de nettoyer
+  const mediaPanel   = document.getElementById('media-panel');
+  const captionPanel = document.getElementById('caption-panel');
   panel.innerHTML = '';
   script.slides.forEach((slide, idx) => {
     const div = document.createElement('div');
@@ -364,6 +409,8 @@ function renderPreviewPanel() {
 
     panel.appendChild(div);
   });
+  if (mediaPanel)   panel.appendChild(mediaPanel);
+  if (captionPanel) panel.appendChild(captionPanel);
 }
 
 async function uploadImageFile(idx, file) {
@@ -569,6 +616,102 @@ function initPlacementCanvas(slide) {
     s[`${key}H`] = Math.round((parseFloat(handle.style.height) / CH) * 1000) / 10;
     saveAll().then(() => renderSlide(activeIdx));
   }, { signal });
+}
+
+function renderMediaPanel() {
+  const existing = document.getElementById('media-panel');
+  if (existing) existing.remove();
+
+  const proposals = script.mediaProposals;
+  if (!proposals || (!proposals.images?.length && !proposals.videos?.length)) return;
+
+  const panel = document.getElementById('preview-panel');
+  const div = document.createElement('div');
+  div.id = 'media-panel';
+  div.style.cssText = 'background:white;border-radius:10px;padding:20px;margin-top:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);';
+
+  const imgCount = proposals.images?.length || 0;
+  const vidCount = proposals.videos?.length || 0;
+
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="media-toggle">
+      <h3 style="font-size:14px;">Mediathèque <span style="font-size:11px;color:#888;">${imgCount} image${imgCount>1?'s':''} · ${vidCount} vidéo${vidCount>1?'s':''}</span></h3>
+      <span id="media-toggle-icon" style="font-size:12px;color:#888;">▼</span>
+    </div>
+    <div id="media-content" style="margin-top:12px;">`;
+
+  if (imgCount) {
+    html += `<p class="media-section-label">Images — cliquer pour appliquer à la slide active</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">`;
+    proposals.images.forEach((img, i) => {
+      html += `<div class="media-img-item" data-media-idx="${i}" title="${escapeHtml(img.title)}">
+        <img src="${escapeHtml(img.thumbnail)}" alt="${escapeHtml(img.title)}" loading="lazy">
+        <div class="media-src">${escapeHtml(img.source)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (vidCount) {
+    html += `<p class="media-section-label">Vidéos officielles</p>`;
+    proposals.videos.forEach(vid => {
+      html += `<a class="media-video-item" href="${escapeHtml(vid.watchUrl)}" target="_blank" rel="noopener">
+        <img src="${escapeHtml(vid.thumbnail)}" alt="">
+        <div>
+          <div style="font-size:12px;font-weight:600;line-height:1.3;">${escapeHtml(vid.title)}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${escapeHtml(vid.channel)}</div>
+        </div>
+      </a>`;
+    });
+  }
+
+  html += `</div>`;
+  div.innerHTML = html;
+  panel.appendChild(div);
+
+  document.getElementById('media-toggle').onclick = () => {
+    const content = document.getElementById('media-content');
+    const icon    = document.getElementById('media-toggle-icon');
+    const collapsed = content.style.display === 'none';
+    content.style.display = collapsed ? '' : 'none';
+    icon.textContent = collapsed ? '▼' : '▶';
+  };
+
+  document.querySelectorAll('.media-img-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.dataset.mediaIdx, 10);
+      applyMediaImage(proposals.images[idx]);
+    });
+  });
+}
+
+async function applyMediaImage(img) {
+  if (activeIdx === null) {
+    toast('Sélectionne une slide d\'abord', 'error');
+    return;
+  }
+  setStatus('Application de l\'image...', 'saving');
+  try {
+    const res = await fetch('/api/apply-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...img, slideIndex: activeIdx }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      script.slides[activeIdx] = data.slide;
+      toast('Image appliquée');
+      renderPreviewPanel();
+      renderEditPanel();
+      setStatus('');
+    } else {
+      toast('Erreur : ' + (data.error || 'inconnue'), 'error');
+      setStatus('');
+    }
+  } catch (e) {
+    toast('Erreur : ' + e.message, 'error');
+    setStatus('');
+  }
 }
 
 function renderCaptionSection() {

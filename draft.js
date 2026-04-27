@@ -7,6 +7,7 @@ import slugify from 'slugify';
 
 import { ingestUrl } from './src/ingest.js';
 import { scriptArticle } from './src/script.js';
+import { searchMedia } from './src/media.js';
 import { renderSlides } from './src/render.js';
 
 async function main() {
@@ -37,6 +38,13 @@ async function main() {
   // 2. Scénarisation via Groq
   const script = await scriptArticle(articles);
   console.log(`[main] ${script.slides.length} slides, template "${script.template}"`);
+
+  // 2b. Recherche de médias (si clés configurées)
+  if (process.env.BING_SEARCH_KEY || process.env.GOOGLE_SEARCH_KEY) {
+    script.mediaProposals = await searchMedia(script.topic);
+  } else {
+    console.log('[main] Aucune clé média configurée (BING_SEARCH_KEY / GOOGLE_SEARCH_KEY) — médiathèque désactivée');
+  }
 
   // Créer le dossier de sortie (basé sur le premier article)
   const date = new Date().toISOString().slice(0, 10);

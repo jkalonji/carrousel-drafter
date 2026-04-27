@@ -141,6 +141,51 @@ async function main() {
     }
   });
 
+  // POST /api/apply-media : télécharge une image suggérée et l'applique à une slide
+  app.post('/api/apply-media', async (req, res) => {
+    try {
+      const { url, title, source, sourceUrl, slideIndex } = req.body;
+      const idx = parseInt(slideIndex, 10);
+      const script = JSON.parse(await fs.readFile(scriptPath, 'utf-8'));
+      const slide = script.slides[idx];
+      if (!slide) return res.status(404).json({ error: 'slide introuvable' });
+
+      const imgRes = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CarouselDrafter/1.0)' },
+        redirect: 'follow',
+      });
+      if (!imgRes.ok) throw new Error(`Téléchargement échoué : ${imgRes.status}`);
+
+      const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+      const ext = contentType.includes('png') ? '.png'
+        : contentType.includes('gif') ? '.gif'
+        : contentType.includes('webp') ? '.webp'
+        : '.jpg';
+      const finalName = `media-slide-${idx + 1}-${Date.now()}${ext}`;
+      const finalPath = path.join(uploadsDir, finalName);
+      await fs.writeFile(finalPath, Buffer.from(await imgRes.arrayBuffer()));
+
+      slide.imageFile = finalPath;
+      slide.imageAttribution = source
+        ? `Source : ${source}${sourceUrl ? ` — ${sourceUrl}` : ''}`
+        : (title || '');
+      slide.missingImageNote = '';
+
+      await fs.writeFile(scriptPath, JSON.stringify(script, null, 2), 'utf-8');
+      const outPath = path.join(draftDir, `slide-${String(idx + 1).padStart(2, '0')}.png`);
+      await renderSingleSlide(script, slide, idx, script.slides.length, outPath);
+
+      res.json({
+        ok: true,
+        slide: { ...slide, imageUrl: toImageUrl(slide.imageFile) },
+        url: `/draft/slide-${String(idx + 1).padStart(2, '0')}.png?t=${Date.now()}`,
+      });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // GET /api/export-pdf : génère un PDF multi-pages à partir des slides rendues
   app.get('/api/export-pdf', async (_req, res) => {
     try {
