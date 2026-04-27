@@ -333,6 +333,33 @@
     color: #888;
     margin-bottom: 8px;
   }
+
+  .slide-controls {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: none;
+    gap: 4px;
+    z-index: 10;
+  }
+  .slide-preview:hover .slide-controls { display: flex; }
+  .slide-btn {
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .slide-btn:hover { background: rgba(0,0,0,0.88); }
+  .slide-btn-delete { background: rgba(176,52,47,0.8); }
+  .slide-btn-delete:hover { background: rgb(176,52,47); }
+  .slide-btn:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -385,18 +412,27 @@ function renderPreviewPanel() {
   script.slides.forEach((slide, idx) => {
     const div = document.createElement('div');
     div.className = 'slide-preview' + (idx === activeIdx ? ' active' : '');
+    div.dataset.slideIdx = idx;
     div.innerHTML = `
       <img src="/draft/slide-${String(idx + 1).padStart(2, '0')}.png?t=${Date.now()}" alt="">
       <div class="drop-overlay">
         <span class="drop-icon">🖼️</span>
         Déposer l'image ici
       </div>
+      <div class="slide-controls">
+        <button class="slide-btn" data-action="up" title="Monter" ${idx === 0 ? 'disabled' : ''}>↑</button>
+        <button class="slide-btn" data-action="down" title="Descendre" ${idx === script.slides.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="slide-btn slide-btn-delete" data-action="delete" title="Supprimer">×</button>
+      </div>
       <div class="label">
         <span class="role">${slide.role || 'slide'}</span>
         <span>Slide ${idx + 1} / ${script.slides.length}</span>
       </div>
     `;
-    div.onclick = () => selectSlide(idx);
+    div.onclick = (e) => {
+      if (e.target.closest('.slide-btn')) return;
+      selectSlide(idx);
+    };
 
     div.addEventListener('dragover', (e) => { e.preventDefault(); div.classList.add('drag-over'); });
     div.addEventListener('dragleave', (e) => { if (!div.contains(e.relatedTarget)) div.classList.remove('drag-over'); });
@@ -405,6 +441,16 @@ function renderPreviewPanel() {
       div.classList.remove('drag-over');
       const file = e.dataTransfer.files[0];
       if (file) uploadImageFile(idx, file);
+    });
+
+    div.querySelectorAll('.slide-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        if (action === 'up')     moveSlide(idx, -1);
+        if (action === 'down')   moveSlide(idx, +1);
+        if (action === 'delete') deleteSlide(idx);
+      });
     });
 
     panel.appendChild(div);
@@ -616,6 +662,38 @@ function initPlacementCanvas(slide) {
     s[`${key}H`] = Math.round((parseFloat(handle.style.height) / CH) * 1000) / 10;
     saveAll().then(() => renderSlide(activeIdx));
   }, { signal });
+}
+
+async function saveAndRenderAll() {
+  await fetch('/api/script', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(script),
+  });
+  setStatus('Rendu en cours...', 'saving');
+  const res = await fetch('/api/render-all', { method: 'POST' });
+  if ((await res.json()).ok) {
+    renderPreviewPanel();
+    setStatus('');
+  }
+}
+
+async function moveSlide(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= script.slides.length) return;
+  [script.slides[idx], script.slides[newIdx]] = [script.slides[newIdx], script.slides[idx]];
+  script.slides.forEach((s, i) => { s.index = i + 1; });
+  await saveAndRenderAll();
+  selectSlide(newIdx);
+}
+
+async function deleteSlide(idx) {
+  if (script.slides.length <= 1) { toast('Impossible de supprimer la dernière slide', 'error'); return; }
+  script.slides.splice(idx, 1);
+  script.slides.forEach((s, i) => { s.index = i + 1; });
+  if (activeIdx >= script.slides.length) activeIdx = script.slides.length - 1;
+  await saveAndRenderAll();
+  selectSlide(activeIdx);
 }
 
 function renderMediaPanel() {
