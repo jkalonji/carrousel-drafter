@@ -10,9 +10,9 @@ import { scriptArticle } from './src/script.js';
 import { renderSlides } from './src/render.js';
 
 async function main() {
-  const url = process.argv[2];
-  if (!url) {
-    console.error('Usage : node draft.js <url>');
+  const urls = process.argv.slice(2);
+  if (!urls.length) {
+    console.error('Usage : node draft.js <url> [url2] [url3...]');
     process.exit(1);
   }
   if (!process.env.GROQ_API_KEY) {
@@ -20,17 +20,17 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. Ingestion
-  const article = await ingestUrl(url);
-  console.log(`[main] Article : "${article.title}"`);
+  // 1. Ingestion (en parallèle)
+  const articles = await Promise.all(urls.map(url => ingestUrl(url)));
+  articles.forEach(a => console.log(`[main] Article : "${a.title}"`));
 
-  // 2. Scénarisation via Claude
-  const script = await scriptArticle(article);
+  // 2. Scénarisation via Groq
+  const script = await scriptArticle(articles);
   console.log(`[main] ${script.slides.length} slides, template "${script.template}"`);
 
-  // Créer le dossier de sortie
+  // Créer le dossier de sortie (basé sur le premier article)
   const date = new Date().toISOString().slice(0, 10);
-  const slug = slugify(article.title || 'draft', { lower: true, strict: true }).slice(0, 50);
+  const slug = slugify(articles[0].title || 'draft', { lower: true, strict: true }).slice(0, 50);
   const draftDir = path.join(process.cwd(), 'drafts', `${date}-${slug}`);
   await fs.mkdir(draftDir, { recursive: true });
 
@@ -44,11 +44,14 @@ async function main() {
     'utf-8'
   );
 
+  const sourcesBlock = articles
+    .map(a => `${a.title}\n${a.url}`)
+    .join('\n\n');
+
   const captionContent = `# Caption Instagram
 
-## Source
-${article.title}
-${article.url}
+## Sources
+${sourcesBlock}
 
 ## Caption
 ${script.caption}

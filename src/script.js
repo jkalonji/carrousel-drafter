@@ -23,15 +23,43 @@ Your reference style:
 
 You respond ONLY with valid JSON, no markdown, no preamble, no comments.`;
 
-const userPrompt = (article) => `Here is the article to turn into an Instagram carousel:
+function charsPerArticle(n) {
+  if (n <= 1) return 8000;
+  if (n === 2) return 4000;
+  if (n === 3) return 2500;
+  return 2000;
+}
 
-TITLE: ${article.title}
-SOURCE: ${article.source}
-AUTHOR: ${article.author}
-DESCRIPTION: ${article.description}
+function formatArticles(articles) {
+  const limit = charsPerArticle(articles.length);
+  if (articles.length === 1) {
+    const a = articles[0];
+    return `Here is the article to turn into an Instagram carousel:
+
+TITLE: ${a.title}
+SOURCE: ${a.source}
+AUTHOR: ${a.author}
+DESCRIPTION: ${a.description}
 
 CONTENT:
-${article.content.slice(0, 8000)}
+${a.content.slice(0, limit)}`;
+  }
+
+  const blocks = articles.map((a, i) => `--- SOURCE ${i + 1}: ${a.source} ---
+TITLE: ${a.title}
+AUTHOR: ${a.author}
+DESCRIPTION: ${a.description}
+
+CONTENT:
+${a.content.slice(0, limit)}`).join('\n\n');
+
+  return `Here are ${articles.length} articles to cross-reference and synthesize into a single Instagram carousel.
+Draw insights from ALL sources. Highlight convergences and contrasts between them.
+
+${blocks}`;
+}
+
+const userPrompt = (articles) => `${formatArticles(articles)}
 
 Produce a JSON strictly in the following format:
 
@@ -61,31 +89,32 @@ STRICT RULES:
 - 15-25 relevant hashtags, mix of high-volume and niche
 - Return ONLY the JSON, nothing else`;
 
-async function callGroq(model, article) {
+async function callGroq(model, articles) {
   const completion = await client.chat.completions.create({
     model,
     max_tokens: 4096,
     temperature: 0.6,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt(article) },
+      { role: 'user', content: userPrompt(articles) },
     ],
   });
   return completion.choices[0]?.message?.content?.trim() || '';
 }
 
-export async function scriptArticle(article) {
+export async function scriptArticle(articleOrArticles) {
+  const articles = Array.isArray(articleOrArticles) ? articleOrArticles : [articleOrArticles];
   let model = MODEL;
-  console.log(`[script] Scénarisation via Groq (${model})...`);
+  console.log(`[script] Scénarisation via Groq (${model}), ${articles.length} source(s)...`);
 
   let raw;
   try {
-    raw = await callGroq(model, article);
+    raw = await callGroq(model, articles);
   } catch (err) {
     if (err.status === 429 && model !== FALLBACK_MODEL) {
       console.warn(`[script] Rate limit atteint sur ${model}, bascule sur ${FALLBACK_MODEL}...`);
       model = FALLBACK_MODEL;
-      raw = await callGroq(model, article);
+      raw = await callGroq(model, articles);
     } else {
       throw err;
     }
