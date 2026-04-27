@@ -87,6 +87,7 @@ STRICT RULES:
 - Last slide is a CTA (follow, save, share)
 - "stat" is used when there is a striking number to display in monospace
 - 15-25 relevant hashtags, mix of high-volume and niche
+- CAPITALIZATION: use sentence case only — capitalize the first word and proper nouns, never every word. Wrong: "The New AI Model Changes Everything". Correct: "The new AI model changes everything".
 - Return ONLY the JSON, nothing else`;
 
 async function callGroq(model, articles) {
