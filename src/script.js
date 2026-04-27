@@ -1,6 +1,7 @@
 // src/script.js
 // Appelle Groq (API compatible OpenAI) pour transformer l'article en script de carrousel
 import OpenAI from 'openai';
+import { enrichContext } from './research.js';
 
 const client = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
@@ -59,7 +60,20 @@ Draw insights from ALL sources. Highlight convergences and contrasts between the
 ${blocks}`;
 }
 
-const userPrompt = (articles) => `${formatArticles(articles)}
+function formatContext({ facts, webSnippets }) {
+  let out = '';
+  if (facts?.length) {
+    out += `\n\nEXTRACTED FACTS — you MUST use these in "stat" and "body" fields. Be specific, cite numbers:\n`;
+    out += facts.map(f => `• ${f}`).join('\n');
+  }
+  if (webSnippets?.length) {
+    out += `\n\nWEB RESEARCH — additional data points to enrich your slides:\n`;
+    out += webSnippets.map(s => `• ${s}`).join('\n');
+  }
+  return out;
+}
+
+const userPrompt = (articles, context) => `${formatArticles(articles)}${context ? formatContext(context) : ''}
 
 Produce a JSON strictly in the following format:
 
@@ -90,14 +104,14 @@ STRICT RULES:
 - CAPITALIZATION: use sentence case only — capitalize the first word and proper nouns, never every word. Wrong: "The New AI Model Changes Everything". Correct: "The new AI model changes everything".
 - Return ONLY the JSON, nothing else`;
 
-async function callGroq(model, articles) {
+async function callGroq(model, articles, context) {
   const completion = await client.chat.completions.create({
     model,
     max_tokens: 4096,
     temperature: 0.6,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt(articles) },
+      { role: 'user', content: userPrompt(articles, context) },
     ],
   });
   return completion.choices[0]?.message?.content?.trim() || '';
@@ -106,11 +120,15 @@ async function callGroq(model, articles) {
 export async function scriptArticle(articleOrArticles) {
   const articles = Array.isArray(articleOrArticles) ? articleOrArticles : [articleOrArticles];
   let model = MODEL;
+
+  // Enrichissement du contexte (extraction de faits + recherche web)
+  const context = await enrichContext(articles);
+
   console.log(`[script] Scénarisation via Groq (${model}), ${articles.length} source(s)...`);
 
   let raw;
   try {
-    raw = await callGroq(model, articles);
+    raw = await callGroq(model, articles, context);
   } catch (err) {
     if (err.status === 429 && model !== FALLBACK_MODEL) {
       console.warn(`[script] Rate limit atteint sur ${model}, bascule sur ${FALLBACK_MODEL}...`);
@@ -120,6 +138,7 @@ export async function scriptArticle(articleOrArticles) {
       throw err;
     }
   }
+
 
   // 1. Retirer le bloc de raisonnement <think>...</think> de DeepSeek R1
   let clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
