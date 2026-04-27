@@ -20,8 +20,18 @@ async function main() {
     process.exit(1);
   }
 
-  // 1. Ingestion (en parallèle)
-  const articles = await Promise.all(urls.map(url => ingestUrl(url)));
+  // 1. Ingestion (en parallèle, les sources inaccessibles sont ignorées)
+  const results = await Promise.all(urls.map(url =>
+    ingestUrl(url).catch(err => {
+      console.warn(`[main] Source ignorée (${url}) : ${err.message}`);
+      return null;
+    })
+  ));
+  const articles = results.filter(Boolean);
+  if (!articles.length) {
+    console.error('Erreur : aucune source n\'a pu être extraite.');
+    process.exit(1);
+  }
   articles.forEach(a => console.log(`[main] Article : "${a.title}"`));
 
   // 2. Scénarisation via Groq
