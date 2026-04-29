@@ -190,6 +190,25 @@
     color: #3250d8;
   }
 
+  .fmt-toolbar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+  .fmt-btn {
+    border: 1px solid #d0d0d5;
+    background: #f0f0f3;
+    border-radius: 4px;
+    padding: 3px 9px;
+    font-size: 13px;
+    cursor: pointer;
+    line-height: 1.6;
+    font-family: inherit;
+  }
+  .fmt-btn:hover { background: #e4e4ea; }
+  .fmt-btn.fmt-bold { font-weight: 800; }
+  .fmt-btn.fmt-blue { color: #3250d8; font-weight: 700; }
+
   .section-title {
     font-size: 11px;
     font-weight: 700;
@@ -485,6 +504,18 @@ function selectSlide(idx) {
   renderEditPanel();
 }
 
+function wrapBodySelection(open, close) {
+  const ta = document.getElementById('f-body');
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  if (start === end) return;
+  const selected = ta.value.slice(start, end);
+  ta.setRangeText(open + selected + close, start, end, 'select');
+  ta.focus();
+  scheduleSaveAndRender();
+}
+
 function renderEditPanel() {
   const panel = document.getElementById('edit-panel');
   if (activeIdx === null) {
@@ -516,7 +547,11 @@ function renderEditPanel() {
 
     <div class="field">
       <label>Corps de texte (optionnel)</label>
-      <textarea id="f-body" rows="3">${escapeHtml(slide.body || '')}</textarea>
+      <div class="fmt-toolbar">
+        <button class="fmt-btn fmt-bold" id="btn-fmt-bold" title="Gras — sélectionne du texte puis clique">G</button>
+        <button class="fmt-btn fmt-blue" id="btn-fmt-blue" title="Bleu — sélectionne du texte puis clique">Bleu</button>
+      </div>
+      <textarea id="f-body" rows="3">${slide.body || ''}</textarea>
     </div>
 
     <div class="section-title">Image</div>
@@ -537,6 +572,9 @@ function renderEditPanel() {
   ['f-title', 'f-highlight', 'f-stat', 'f-body'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => scheduleSaveAndRender());
   });
+
+  document.getElementById('btn-fmt-bold').onclick = () => wrapBodySelection('<strong>', '</strong>');
+  document.getElementById('btn-fmt-blue').onclick = () => wrapBodySelection('<span class="blue">', '</span>');
 
   document.getElementById('btn-upload').onclick = () => document.getElementById('file-upload').click();
   document.getElementById('file-upload').onchange = (e) => {

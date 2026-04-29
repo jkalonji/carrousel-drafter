@@ -86,6 +86,14 @@
     font-weight: 400;
   }
 
+  .body-text strong {
+    font-weight: 800;
+  }
+
+  .body-text .blue {
+    color: #3250d8;
+  }
+
   .slide-image {
     max-width: 100%;
     max-height: 500px;
@@ -131,7 +139,7 @@
     {{/title_lines}}
 
     {{#body}}
-    <div class="body-text" style="{{{body_style}}}">{{body}}</div>
+    <div class="body-text" style="{{{body_style}}}">{{{body}}}</div>
     {{/body}}
 
     {{#stat}}
